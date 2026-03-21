@@ -85,4 +85,4 @@ with tab3:
         é um erro grave. Por isso calibramos o modelo para detectar quase todos os riscos (93%), mesmo que isso gere 
         alguns alarmes falsos. Isso prova o compromisso ético da solução.
         """)
-        if os.path.exists('shap_summary.png'): st.image(shap_summary.png', caption="O que mais afeta o risco?")
+        if os.path.exists('shap_summary.png'): st.image('shap_summary.png', caption="O que mais afeta o risco?")
