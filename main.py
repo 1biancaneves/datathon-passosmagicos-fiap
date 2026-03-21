@@ -1,75 +1,48 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
 import os
 import plotly.express as px
 
-# CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="Passos Mágicos - Dashboard", page_icon="📊", layout="wide")
-
-# CARREGAMENTO DE DADOS E MODELO
-@st.cache_data
-def carregar_dados():
-    caminho_dados = 'base_unificada.csv'
-    if os.path.exists(caminho_dados):
-        df = pd.read_csv(caminho_dados)
-        # Necessário para o modelo:
-        df = df.sort_values(['RA', 'Ano'])
-        df['delta_IDA'] = df.groupby('RA')['IDA'].diff().fillna(0)
-        return df
-    return pd.DataFrame()
-
-@st.cache_resource
-def carregar_modelo():
-    if os.path.exists('modelo_xgboost.pkl'):
-        return joblib.load('modelo_xgboost.pkl')
-    return None
+st.set_page_config(page_title="Passos Mágicos - Dashboard", layout="wide")
 
 @st.cache_data
-def carregar_metricas():
-    if os.path.exists('metrics.pkl'):
-        return joblib.load('metrics.pkl')
-    return {"acc": 0.0, "auc": 0.0, "mcc": 0.0}
+def carregar_tudo():
+    df = pd.read_csv('base_unificada.csv') if os.path.exists('base_unificada.csv') else pd.DataFrame()
+    model = joblib.load('modelo_xgboost.pkl') if os.path.exists('modelo_xgboost.pkl') else None
+    metrics = joblib.load('metrics.pkl') if os.path.exists('metrics.pkl') else None
+    return df, model, metrics
 
-df_total = carregar_dados()
-xgb_model = carregar_modelo()
-metrics = carregar_metricas()
+df_total, xgb_model, metrics = carregar_tudo()
 
-# --- INTERFACE ---
-st.title("📊 Painel de Análise - Passos Mágicos")
+st.title("📊 Inteligência Preditiva - Passos Mágicos")
+t1, t2, t3 = st.tabs(["Análise", "Modelo", "Diagnóstico Técnico"])
 
-tab_analise, tab_modelo = st.tabs(["Análise de Dados", "Modelo Preditivo"])
+with t2:
+    if metrics:
+        st.header(f"⚙️ Performance com Limiar de {metrics['threshold']}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Acurácia", f"{metrics['acc']*100:.1f}%")
+        c2.metric("Recall (Sensibilidade)", f"{metrics['rec']*100:.1f}%")
+        c3.metric("Precision", f"{metrics['prec']*100:.1f}%")
+        c4.metric("F1-Score", f"{metrics['f1']:.2f}")
 
-with tab_analise:
-    st.header("Visão Geral dos Alunos")
-    if not df_total.empty:
-        st.dataframe(df_total.tail(10))
-        # Adicione aqui seus gráficos de evolução (INDE, etc)
-    else:
-        st.warning("Aguardando base_unificada.csv")
+        st.subheader("💡 O que mais impacta no risco?")
+        feat_imp = pd.Series(xgb_model.feature_importances_, index=metrics['features']).sort_values(ascending=True)
+        st.plotly_chart(px.bar(feat_imp, orientation='h', color_discrete_sequence=['#F7941E']))
+    else: st.error("Modelo não encontrado.")
 
-with tab_modelo:
-    st.header("⚙️ Modelo Preditivo: Risco de Defasagem")
-    
-    # Exibindo métricas reais capturadas no treino
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Acurácia (Teste 2024)", f"{metrics['acc']*100:.1f}%")
-    col2.metric("ROC-AUC", f"{metrics['auc']:.2f}")
-    col3.metric("MCC", f"{metrics['mcc']:.2f}")
+with t3:
+    st.header("🧪 Validação Científica do Modelo")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("AUC-ROC", f"{metrics['auc']:.2f}")
+    m2.metric("KS (Separação)", f"{metrics['ks']:.2f}")
+    m3.metric("Log Loss", f"{metrics['logloss']:.3f}")
 
-    st.subheader("💡 Importância dos Indicadores")
-    if xgb_model is not None:
-        features = ['IAA', 'IEG', 'IPS', 'IPP', 'IDA', 'IPV', 'delta_IDA']
-        importances = xgb_model.feature_importances_
-        feat_imp = pd.Series(importances, index=features).sort_values(ascending=True)
-        
-        fig_imp = px.bar(feat_imp, orientation='h', 
-                         title="O que mais impacta no risco de atraso?",
-                         labels={'value': 'Importância', 'index': 'Indicador'},
-                         color_discrete_sequence=['#F7941E'])
-        st.plotly_chart(fig_imp, use_container_width=True)
-        
-        # EXPLICAÇÃO TÉCNICA
-        st.info("**Nota Técnica:** O modelo foi treinado com dados de 2022-2023 e validado com dados reais de 2024. "
-                "A variável 'delta_IDA' mede a evolução do desempenho acadêmico, capturando se o aluno está melhorando ou piorando no tempo.")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("Curva de Aprendizado")
+        if os.path.exists('learning_curve.png'): st.image('learning_curve.png')
+    with col_b:
+        st.subheader("SHAP Values (Explicabilidade)")
+        if os.path.exists('shap_summary.png'): st.image('shap_summary.png')
