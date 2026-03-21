@@ -16,7 +16,7 @@ def train_model():
     X_train, y_train = train[features], train['Risco_Defasagem']
     X_test, y_test = test[features], test['Risco_Defasagem']
 
-    # Ajuste de peso para classes desbalanceadas
+    # ajuste de peso para classes desbalanceadas
     ratio = float(np.sum(y_train == 0)) / np.sum(y_train == 1)
 
     model = XGBClassifier(
@@ -31,12 +31,12 @@ def train_model():
 
     model.fit(X_train, y_train, eval_set=[(X_train, y_train), (X_test, y_test)], verbose=False)
 
-    # PREVISÃO COM THRESHOLD DE 0.3 (Priorizando o Recall)
+    # PREVISÃO COM THRESHOLD DE 0.3 (prioriza Recall)
     y_proba = model.predict_proba(X_test)[:, 1]
     threshold = 0.3
     y_pred = (y_proba >= threshold).astype(int)
 
-    # Cálculo de métricas solicitadas
+    # Cálculo de métricas
     acc = accuracy_score(y_test, y_pred)
     prec = precision_score(y_test, y_pred)
     rec = recall_score(y_test, y_pred)
